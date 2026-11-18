@@ -1,0 +1,174 @@
+:root {
+  --fundo: #e8edf2;
+  --tinta: #0f1b2d;
+  --suave: #566174;
+  --destaque: #2b4eff;
+  --superficie: #ffffff;
+  --linha: #cfd7e1;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 100%;
+}
+
+body {
+  font-family: var(--fonte), system-ui, sans-serif;
+  background: var(--fundo);
+  color: var(--tinta);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+.pagina {
+  min-height: 100vh;
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: 3rem 1.25rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* O cartão: proporção parecida com a de um cartão de visita impresso */
+.cartao {
+  aspect-ratio: 7 / 4;
+  background: var(--tinta);
+  color: #fff;
+  border-radius: 0.5rem;
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 1.25rem 2.5rem -1.5rem rgba(15, 27, 45, 0.6);
+}
+
+.cartao::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 38%;
+  height: 100%;
+  background: var(--destaque);
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+  opacity: 0.95;
+}
+
+.cartao-topo,
+.cidade {
+  position: relative;
+  z-index: 1;
+}
+
+.cartao h1 {
+  font-size: clamp(2rem, 8vw, 2.75rem);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+.profissao {
+  margin-top: 0.5rem;
+  font-size: 1.05rem;
+  font-weight: 400;
+  color: #c9d3e3;
+}
+
+.cidade {
+  font-size: 0.95rem;
+  color: #fff;
+}
+
+.conteudo {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.resumo {
+  font-size: 1.1rem;
+  max-width: 60ch;
+}
+
+.contatos {
+  list-style: none;
+  border-top: 1px solid var(--linha);
+}
+
+.contatos li {
+  border-bottom: 1px solid var(--linha);
+}
+
+.contatos a {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 0.95rem 0.25rem;
+  color: inherit;
+  text-decoration: none;
+  transition: background-color 0.15s ease, padding 0.15s ease;
+}
+
+.contatos a:hover {
+  background: var(--superficie);
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+
+.contato-rotulo {
+  font-weight: 600;
+}
+
+.contato-texto {
+  color: var(--suave);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.rodape {
+  margin-top: auto;
+  padding-top: 1rem;
+  font-size: 0.9rem;
+}
+
+.rodape a {
+  color: var(--suave);
+  text-underline-offset: 0.2em;
+}
+
+.rodape a:hover {
+  color: var(--destaque);
+}
+
+a:focus-visible {
+  outline: 3px solid var(--destaque);
+  outline-offset: 2px;
+}
+
+@media (max-width: 26rem) {
+  .cartao {
+    padding: 1.25rem;
+  }
+  .contatos a {
+    flex-direction: column;
+    gap: 0.1rem;
+  }
+  .contato-texto {
+    text-align: left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .contatos a {
+    transition: none;
+  }
+}
