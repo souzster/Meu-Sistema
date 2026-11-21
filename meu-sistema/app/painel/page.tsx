@@ -6,6 +6,8 @@ import { formatarReais } from "@/lib/dinheiro";
 import BotaoSair from "./BotaoSair";
 import BotaoApagar from "./BotaoApagar";
 import FormLancamento from "./FormLancamento";
+import OrcamentoMes from "./OrcamentoMes";
+import Metas from "./Metas";
 import "../auth.css";
 import "./painel.css";
 
@@ -19,6 +21,14 @@ type Lancamento = {
   descricao: string | null;
   account_id: string;
   category_id: string | null;
+};
+type Orcamento = { category_id: string; valor_centavos: number };
+type MetaBanco = {
+  id: string;
+  nome: string;
+  valor_alvo_centavos: number;
+  valor_atual_centavos: number;
+  prazo: string | null;
 };
 
 // "2026-11-19" -> "19/11"
@@ -74,23 +84,46 @@ async function ConteudoPainel() {
       </p>
     );
   } else {
-    const [contasR, categoriasR, lancamentosR] = await Promise.all([
-      supabase.from("accounts").select("id, nome").order("nome"),
-      supabase.from("categories").select("id, nome, tipo").order("nome"),
-      supabase
-        .from("transactions")
-        .select(
-          "id, tipo, valor_centavos, data, descricao, account_id, category_id",
-        )
-        .gte("data", inicio)
-        .lt("data", proximo)
-        .order("data", { ascending: false })
-        .order("criado_em", { ascending: false }),
-    ]);
+    const [contasR, categoriasR, lancamentosR, orcamentosR, metasR] =
+      await Promise.all(
+      [
+        supabase.from("accounts").select("id, nome").order("nome"),
+        supabase.from("categories").select("id, nome, tipo").order("nome"),
+        supabase
+          .from("transactions")
+          .select(
+            "id, tipo, valor_centavos, data, descricao, account_id, category_id",
+          )
+          .gte("data", inicio)
+          .lt("data", proximo)
+          .order("data", { ascending: false })
+          .order("criado_em", { ascending: false }),
+        // Orçamentos até o mês atual, do mais recente para o mais antigo.
+        supabase
+          .from("budgets")
+          .select("category_id, valor_centavos")
+          .lte("mes", inicio)
+          .order("mes", { ascending: false }),
+        supabase
+          .from("goals")
+          .select(
+            "id, nome, valor_alvo_centavos, valor_atual_centavos, prazo",
+          )
+          .order("criado_em"),
+      ],
+    );
 
     const contas = (contasR.data ?? []) as unknown as Conta[];
     const categorias = (categoriasR.data ?? []) as unknown as Categoria[];
     const lancamentos = (lancamentosR.data ?? []) as unknown as Lancamento[];
+    const orcamentos = (orcamentosR.data ?? []) as unknown as Orcamento[];
+    const metas = ((metasR.data ?? []) as unknown as MetaBanco[]).map((m) => ({
+      id: m.id,
+      nome: m.nome,
+      alvo: m.valor_alvo_centavos,
+      atual: m.valor_atual_centavos,
+      prazo: m.prazo,
+    }));
 
     const nomeConta = new Map<string, string>(
       contas.map((c) => [c.id, c.nome] as [string, string]),
@@ -105,6 +138,37 @@ async function ConteudoPainel() {
     const despesas = lancamentos
       .filter((l) => l.tipo === "despesa")
       .reduce((soma, l) => soma + l.valor_centavos, 0);
+
+    // Orçamento vale do mês em que foi definido em diante, até ser alterado.
+    const orcadoPorCategoria = new Map<string, number>();
+    for (const o of orcamentos) {
+      if (!orcadoPorCategoria.has(o.category_id)) {
+        orcadoPorCategoria.set(o.category_id, o.valor_centavos);
+      }
+    }
+
+    const gastoPorCategoria = new Map<string, number>();
+    let semCategoria = 0;
+    for (const l of lancamentos) {
+      if (l.tipo !== "despesa") continue;
+      if (l.category_id) {
+        gastoPorCategoria.set(
+          l.category_id,
+          (gastoPorCategoria.get(l.category_id) ?? 0) + l.valor_centavos,
+        );
+      } else {
+        semCategoria += l.valor_centavos;
+      }
+    }
+
+    const itensOrcamento = categorias
+      .filter((c) => c.tipo === "despesa")
+      .map((c) => ({
+        id: c.id,
+        nome: c.nome,
+        orcado: orcadoPorCategoria.get(c.id) ?? null,
+        gasto: gastoPorCategoria.get(c.id) ?? 0,
+      }));
 
     conteudo = (
       <>
@@ -138,6 +202,22 @@ async function ConteudoPainel() {
               hoje={hoje}
             />
           )}
+        </section>
+
+        <section className="bloco">
+          <h2>Orçamento do mês</h2>
+          <OrcamentoMes
+            key={itensOrcamento.map((i) => `${i.id}:${i.orcado}`).join("|")}
+            workspaceId={workspaceId}
+            mes={inicio}
+            itens={itensOrcamento}
+            semCategoria={semCategoria}
+          />
+        </section>
+
+        <section className="bloco">
+          <h2>Metas</h2>
+          <Metas workspaceId={workspaceId} hoje={hoje} metas={metas} />
         </section>
 
         <section className="bloco">
