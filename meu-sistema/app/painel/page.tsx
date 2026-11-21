@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { formatarReais } from "@/lib/dinheiro";
 import BotaoSair from "./BotaoSair";
-import BotaoApagar from "./BotaoApagar";
+import LinhaLancamento from "./LinhaLancamento";
 import FormLancamento from "./FormLancamento";
 import OrcamentoMes from "./OrcamentoMes";
 import Metas from "./Metas";
@@ -40,12 +40,6 @@ function deslocarMes(ano: number, mes: number, delta: number) {
   const novoAno = Math.floor(total / 12);
   const novoMes = (total % 12) + 1;
   return `${novoAno}-${String(novoMes).padStart(2, "0")}`;
-}
-
-// "2026-11-19" -> "19/11"
-function formatarData(data: string) {
-  const [, mes, dia] = data.split("-");
-  return `${dia}/${mes}`;
 }
 
 async function ConteudoPainel({
@@ -149,13 +143,6 @@ async function ConteudoPainel({
       prazo: m.prazo,
     }));
 
-    const nomeConta = new Map<string, string>(
-      contas.map((c) => [c.id, c.nome] as [string, string]),
-    );
-    const nomeCategoria = new Map<string, string>(
-      categorias.map((c) => [c.id, c.nome] as [string, string]),
-    );
-
     const receitas = lancamentos
       .filter((l) => l.tipo === "receita")
       .reduce((soma, l) => soma + l.valor_centavos, 0);
@@ -251,30 +238,14 @@ async function ConteudoPainel({
             <p className="vazio">Nenhum lançamento neste mês ainda.</p>
           ) : (
             <ul className="lista">
-              {lancamentos.map((l) => {
-                const categoria = l.category_id
-                  ? nomeCategoria.get(l.category_id)
-                  : undefined;
-                const conta = nomeConta.get(l.account_id);
-                return (
-                  <li key={l.id}>
-                    <span className="lista-data">{formatarData(l.data)}</span>
-                    <span className="lista-desc">
-                      <strong>
-                        {l.descricao ?? categoria ?? "Sem descrição"}
-                      </strong>
-                      <small>
-                        {[categoria, conta].filter(Boolean).join(" · ")}
-                      </small>
-                    </span>
-                    <span className="lista-valor">
-                      {l.tipo === "receita" ? "+" : "-"}{" "}
-                      {formatarReais(l.valor_centavos)}
-                    </span>
-                    <BotaoApagar id={l.id} />
-                  </li>
-                );
-              })}
+              {lancamentos.map((l) => (
+                <LinhaLancamento
+                  key={l.id}
+                  lancamento={l}
+                  contas={contas}
+                  categorias={categorias}
+                />
+              ))}
             </ul>
           )}
         </section>
