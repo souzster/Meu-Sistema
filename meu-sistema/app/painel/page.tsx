@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { criarClienteServidor } from "@/lib/supabase/server";
@@ -31,15 +32,30 @@ type MetaBanco = {
   prazo: string | null;
 };
 
+type ParametrosPagina = Promise<Record<string, string | string[] | undefined>>;
+
+// Soma (ou subtrai) meses e devolve no formato "2026-11".
+function deslocarMes(ano: number, mes: number, delta: number) {
+  const total = ano * 12 + (mes - 1) + delta;
+  const novoAno = Math.floor(total / 12);
+  const novoMes = (total % 12) + 1;
+  return `${novoAno}-${String(novoMes).padStart(2, "0")}`;
+}
+
 // "2026-11-19" -> "19/11"
 function formatarData(data: string) {
   const [, mes, dia] = data.split("-");
   return `${dia}/${mes}`;
 }
 
-async function ConteudoPainel() {
+async function ConteudoPainel({
+  searchParams,
+}: {
+  searchParams: ParametrosPagina;
+}) {
   // Esta parte roda a cada acesso, e não na pré-renderização.
   await connection();
+  const parametros = await searchParams;
 
   const supabase = await criarClienteServidor();
   const {
@@ -54,12 +70,20 @@ async function ConteudoPainel() {
   const hoje = new Date().toLocaleDateString("sv-SE", {
     timeZone: "America/Sao_Paulo",
   });
-  const [ano, mes] = hoje.split("-").map(Number);
-  const inicio = `${ano}-${String(mes).padStart(2, "0")}-01`;
-  const proximo =
-    mes === 12
-      ? `${ano + 1}-01-01`
-      : `${ano}-${String(mes + 1).padStart(2, "0")}-01`;
+  const mesAtual = hoje.slice(0, 7);
+  const pedido = Array.isArray(parametros.mes)
+    ? parametros.mes[0]
+    : parametros.mes;
+  const mesEscolhido =
+    pedido && /^\d{4}-(0[1-9]|1[0-2])$/.test(pedido) ? pedido : mesAtual;
+  const [ano, mes] = mesEscolhido.split("-").map(Number);
+  const inicio = `${mesEscolhido}-01`;
+  const mesAnterior = deslocarMes(ano, mes, -1);
+  const mesSeguinte = deslocarMes(ano, mes, 1);
+  const proximo = `${mesSeguinte}-01`;
+  const ehMesAtual = mesEscolhido === mesAtual;
+  // Em outro mês, o formulário já abre com uma data dentro dele.
+  const dataPadrao = ehMesAtual ? hoje : inicio;
   const rotuloMes = new Date(ano, mes - 1, 1).toLocaleDateString("pt-BR", {
     month: "long",
     year: "numeric",
@@ -196,10 +220,11 @@ async function ConteudoPainel() {
             </p>
           ) : (
             <FormLancamento
+              key={inicio}
               workspaceId={workspaceId}
               contas={contas}
               categorias={categorias}
-              hoje={hoje}
+              hoje={dataPadrao}
             />
           )}
         </section>
@@ -207,7 +232,7 @@ async function ConteudoPainel() {
         <section className="bloco">
           <h2>Orçamento do mês</h2>
           <OrcamentoMes
-            key={itensOrcamento.map((i) => `${i.id}:${i.orcado}`).join("|")}
+            key={`${inicio}|${itensOrcamento.map((i) => `${i.id}:${i.orcado}`).join("|")}`}
             workspaceId={workspaceId}
             mes={inicio}
             itens={itensOrcamento}
@@ -262,7 +287,12 @@ async function ConteudoPainel() {
       <header className="painel-topo">
         <div>
           <h1>Painel financeiro</h1>
-          <p className="mes">{rotuloMes}</p>
+          <nav className="nav-mes" aria-label="Navegar entre meses">
+            <Link href={`/painel?mes=${mesAnterior}`}>← Anterior</Link>
+            <span className="mes">{rotuloMes}</span>
+            <Link href={`/painel?mes=${mesSeguinte}`}>Próximo →</Link>
+            {!ehMesAtual && <Link href="/painel">Voltar ao mês atual</Link>}
+          </nav>
         </div>
         <BotaoSair />
       </header>
@@ -274,10 +304,14 @@ async function ConteudoPainel() {
   );
 }
 
-export default function Painel() {
+export default function Painel({
+  searchParams,
+}: {
+  searchParams: ParametrosPagina;
+}) {
   return (
     <Suspense fallback={<p className="painel">Carregando...</p>}>
-      <ConteudoPainel />
+      <ConteudoPainel searchParams={searchParams} />
     </Suspense>
   );
 }
