@@ -9,6 +9,7 @@ import LinhaLancamento from "./LinhaLancamento";
 import FormLancamento from "./FormLancamento";
 import OrcamentoMes from "./OrcamentoMes";
 import Metas from "./Metas";
+import Contas from "./Contas";
 import "../auth.css";
 import "./painel.css";
 
@@ -24,6 +25,12 @@ type Lancamento = {
   category_id: string | null;
 };
 type Orcamento = { category_id: string; valor_centavos: number };
+type SaldoConta = {
+  account_id: string;
+  nome: string;
+  tipo: string;
+  saldo_centavos: number;
+};
 type MetaBanco = {
   id: string;
   nome: string;
@@ -102,7 +109,7 @@ async function ConteudoPainel({
       </p>
     );
   } else {
-    const [contasR, categoriasR, lancamentosR, orcamentosR, metasR] =
+    const [contasR, categoriasR, lancamentosR, orcamentosR, metasR, saldosR] =
       await Promise.all(
       [
         supabase.from("accounts").select("id, nome").order("nome"),
@@ -128,6 +135,10 @@ async function ConteudoPainel({
             "id, nome, valor_alvo_centavos, valor_atual_centavos, prazo",
           )
           .order("criado_em"),
+        supabase
+          .from("saldos_contas")
+          .select("account_id, nome, tipo, saldo_centavos")
+          .order("nome"),
       ],
     );
 
@@ -142,6 +153,14 @@ async function ConteudoPainel({
       atual: m.valor_atual_centavos,
       prazo: m.prazo,
     }));
+    const saldosContas = ((saldosR.data ?? []) as unknown as SaldoConta[]).map(
+      (c) => ({
+        id: c.account_id,
+        nome: c.nome,
+        tipo: c.tipo,
+        saldo: Number(c.saldo_centavos),
+      }),
+    );
 
     const receitas = lancamentos
       .filter((l) => l.tipo === "receita")
@@ -196,6 +215,18 @@ async function ConteudoPainel({
             <span>Resultado do mês</span>
             <strong>{formatarReais(receitas - despesas)}</strong>
           </div>
+        </section>
+
+        <section className="bloco">
+          <h2>Contas e saldos</h2>
+          {saldosR.error ? (
+            <p className="aviso">
+              Não foi possível carregar os saldos. Rode o script
+              04-saldos-contas.sql no Supabase.
+            </p>
+          ) : (
+            <Contas workspaceId={workspaceId} contas={saldosContas} />
+          )}
         </section>
 
         <section className="bloco">
