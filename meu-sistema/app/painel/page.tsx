@@ -10,6 +10,7 @@ import FormLancamento from "./FormLancamento";
 import OrcamentoMes from "./OrcamentoMes";
 import Metas from "./Metas";
 import Contas from "./Contas";
+import Categorias from "./Categorias";
 import "../auth.css";
 import "./painel.css";
 
@@ -279,6 +280,15 @@ async function ConteudoPainel({
               ))}
             </ul>
           )}
+        </section>
+
+        <section className="bloco">
+          <details className="recolher">
+            <summary>
+              <h2>Categorias</h2>
+            </summary>
+            <Categorias workspaceId={workspaceId} categorias={categorias} />
+          </details>
         </section>
       </>
     );
