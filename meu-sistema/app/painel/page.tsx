@@ -13,6 +13,7 @@ import Contas from "./Contas";
 import Categorias from "./Categorias";
 import "../auth.css";
 import "./painel.css";
+import "./backup.css";
 
 type Conta = { id: string; nome: string };
 type Categoria = { id: string; nome: string; tipo: "receita" | "despesa" };
@@ -288,6 +289,28 @@ async function ConteudoPainel({
               <h2>Categorias</h2>
             </summary>
             <Categorias workspaceId={workspaceId} categorias={categorias} />
+          </details>
+        </section>
+
+        <section className="bloco">
+          <details className="recolher">
+            <summary>
+              <h2>Backup e exportação</h2>
+            </summary>
+            <div className="backup">
+              <p>
+                Baixe uma cópia dos seus dados e guarde em um lugar seguro, como
+                o Google Drive. O ideal é fazer isso uma vez por mês.
+              </p>
+              <p className="backup-links">
+                <a className="botao" href="/painel/exportar/csv">
+                  Planilha de lançamentos (CSV)
+                </a>
+                <a className="botao botao-claro" href="/painel/exportar/json">
+                  Backup completo (JSON)
+                </a>
+              </p>
+            </div>
           </details>
         </section>
       </>
