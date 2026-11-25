@@ -11,6 +11,7 @@ import OrcamentoMes from "./OrcamentoMes";
 import Metas from "./Metas";
 import Contas from "./Contas";
 import Categorias from "./Categorias";
+import Graficos from "./Graficos";
 import "../auth.css";
 import "./painel.css";
 import "./backup.css";
@@ -32,6 +33,11 @@ type SaldoConta = {
   nome: string;
   tipo: string;
   saldo_centavos: number;
+};
+type ResumoMes = {
+  mes: string;
+  receitas_centavos: number;
+  despesas_centavos: number;
 };
 type MetaBanco = {
   id: string;
@@ -111,7 +117,15 @@ async function ConteudoPainel({
       </p>
     );
   } else {
-    const [contasR, categoriasR, lancamentosR, orcamentosR, metasR, saldosR] =
+    const [
+      contasR,
+      categoriasR,
+      lancamentosR,
+      orcamentosR,
+      metasR,
+      saldosR,
+      resumoR,
+    ] =
       await Promise.all(
       [
         supabase.from("accounts").select("id, nome").order("nome"),
@@ -141,6 +155,13 @@ async function ConteudoPainel({
           .from("saldos_contas")
           .select("account_id, nome, tipo, saldo_centavos")
           .order("nome"),
+        // Totais dos últimos 6 meses (incluindo o mês escolhido).
+        supabase
+          .from("resumo_mensal")
+          .select("mes, receitas_centavos, despesas_centavos")
+          .gte("mes", `${deslocarMes(ano, mes, -5)}-01`)
+          .lte("mes", inicio)
+          .order("mes"),
       ],
     );
 
@@ -192,6 +213,38 @@ async function ConteudoPainel({
         semCategoria += l.valor_centavos;
       }
     }
+
+    // Dados dos gráficos
+    const fatias = categorias
+      .filter((c) => c.tipo === "despesa")
+      .map((c) => ({ nome: c.nome, valor: gastoPorCategoria.get(c.id) ?? 0 }))
+      .filter((f) => f.valor > 0);
+    if (semCategoria > 0) {
+      fatias.push({ nome: "Sem categoria", valor: semCategoria });
+    }
+    fatias.sort((a, b) => b.valor - a.valor);
+
+    const resumoPorMes = new Map<string, { receitas: number; despesas: number }>();
+    for (const r of (resumoR.data ?? []) as unknown as ResumoMes[]) {
+      resumoPorMes.set(r.mes.slice(0, 7), {
+        receitas: Number(r.receitas_centavos),
+        despesas: Number(r.despesas_centavos),
+      });
+    }
+    const meses = resumoR.error
+      ? null
+      : [5, 4, 3, 2, 1, 0].map((atras) => {
+          const chave = deslocarMes(ano, mes, -atras);
+          const [a, m] = chave.split("-").map(Number);
+          const nomeMes = new Date(a, m - 1, 1)
+            .toLocaleDateString("pt-BR", { month: "short" })
+            .replace(".", "");
+          return {
+            rotulo: `${nomeMes}/${String(a).slice(2)}`,
+            receitas: resumoPorMes.get(chave)?.receitas ?? 0,
+            despesas: resumoPorMes.get(chave)?.despesas ?? 0,
+          };
+        });
 
     const itensOrcamento = categorias
       .filter((c) => c.tipo === "despesa")
@@ -257,6 +310,15 @@ async function ConteudoPainel({
             mes={inicio}
             itens={itensOrcamento}
             semCategoria={semCategoria}
+          />
+        </section>
+
+        <section className="bloco">
+          <h2>Gráficos</h2>
+          <Graficos
+            fatias={fatias}
+            totalDespesas={despesas}
+            meses={meses}
           />
         </section>
 
